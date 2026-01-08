@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>krowdly</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+body{margin:0;font-family:Segoe UI;background:#f4f6fb}
+header{background:#6c63ff;color:#fff;padding:40px;text-align:center}
+section{background:#fff;margin:20px auto;padding:20px;max-width:1200px;border-radius:14px}
+input,select,button{padding:12px;width:100%;margin:6px 0}
+button{background:#6c63ff;color:white;border:none;border-radius:10px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.event{padding:16px;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.1)}
+.tag{font-size:12px;padding:4px 10px;border-radius:999px;background:#eee}
+.small{font-size:13px;opacity:.7}
+#map{height:400px;border-radius:14px}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🎉 krowdly</h1>
+<p>Discover events. Invite friends. Show up.</p>
+</header>
+
+<section>
+<h2>👤 User</h2>
+<input id="loginUser" placeholder="Username">
+<button onclick="login()">Login</button>
+<p id="currentUser"></p>
+</section>
+
+<section>
+<h2>📅 Create Event</h2>
+<input id="eventName" placeholder="Event name">
+<input id="eventLocation" placeholder="Location">
+<input id="eventDate" type="datetime-local">
+<select id="eventCategory">
+  <option>music</option>
+  <option>tech</option>
+  <option>food</option>
+</select>
+<select id="eventVisibility">
+  <option value="public">🌍 Public Event</option>
+  <option value="private">🔒 Private Event</option>
+</select>
+<input id="eventInviteLimit" type="number" placeholder="Invite limit (private only)">
+<button onclick="createEvent()">Create Event</button>
+</section>
+
+<section>
+<h2>🗺️ Event Map</h2>
+<div id="map"></div>
+</section>
+
+<section>
+<h2>🔥 Events</h2>
+<div class="grid" id="events"></div>
+</section>
+
+<script>
+/* ---------- STORAGE ---------- */
+const load=(k,d)=>JSON.parse(localStorage.getItem(k))||d;
+const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+let users=load("k_users",[]);
+let currentUser=load("k_user",null);
+let events=load("k_events",[]);
+let rsvps=load("k_rsvps",{});
+let invites=load("k_invites",{});
+let inviteRequests=load("k_invite_requests",{});
+
+/* ---------- MAP ---------- */
+const map=L.map("map").setView([20,0],2);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+let markers=[];
+
+/* ---------- USER ---------- */
+function login(){
+  const u=loginUser.value.trim().toLowerCase();
+  if(!u) return;
+  if(!users.includes(u)) users.push(u);
+  currentUser=u;
+  save("k_users",users);
+  save("k_user",u);
+  renderUser();
+}
+function renderUser(){
+  currentUserEl.textContent=currentUser
+    ?`Logged in as ${currentUser}`:"Not logged in";
+  loadEvents();
+}
+const currentUserEl=document.getElementById("currentUser");
+renderUser();
+
+/* ---------- CREATE EVENT ---------- */
+function createEvent(){
+  if(!currentUser) return alert("Login required");
+  if(!eventName.value||!eventLocation.value||!eventDate.value)
+    return alert("Fill all fields");
+
+  navigator.geolocation.getCurrentPosition(pos=>{
+    events.push({
+      id:Date.now(),
+      name:eventName.value,
+      location:eventLocation.value,
+      date:eventDate.value,
+      category:eventCategory.value,
+      visibility:eventVisibility.value,
+      inviteLimit:Number(eventInviteLimit.value)||Infinity,
+      lat:pos.coords.latitude,
+      lon:pos.coords.longitude,
+      creator:currentUser
+    });
+    save("k_events",events);
+    loadEvents();
+  });
+}
+
+/* ---------- REQUEST INVITE ---------- */
+function requestInvite(id){
+  const msg=prompt("Why do you want to join?");
+  if(!msg) return;
+  inviteRequests[id]=inviteRequests[id]||[];
+  if(inviteRequests[id].some(r=>r.user===currentUser)) return;
+  inviteRequests[id].push({user:currentUser,message:msg});
+  save("k_invite_requests",inviteRequests);
+  loadEvents();
+}
+
+/* ---------- APPROVE / DECLINE ---------- */
+function approveInvite(id,user){
+  const e=events.find(x=>x.id===id);
+  invites[id]=invites[id]||[];
+  if(invites[id].length>=e.inviteLimit)
+    return alert("Invite limit reached");
+
+  invites[id].push(user);
+  inviteRequests[id]=inviteRequests[id].filter(r=>r.user!==user);
+  save("k_invites",invites);
+  save("k_invite_requests",inviteRequests);
+  loadEvents();
+}
+
+function declineInvite(id,user){
+  inviteRequests[id]=inviteRequests[id].filter(r=>r.user!==user);
+  save("k_invite_requests",inviteRequests);
+  loadEvents();
+}
+
+/* ---------- RSVP ---------- */
+function rsvp(id){
+  rsvps[id]=rsvps[id]||[];
+  if(!rsvps[id].includes(currentUser)){
+    rsvps[id].push(currentUser);
+    save("k_rsvps",rsvps);
+    loadEvents();
+  }
+}
+
+/* ---------- LOAD EVENTS ---------- */
+const eventsDiv=document.getElementById("events");
+
+function loadEvents(){
+  eventsDiv.innerHTML="";
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+
+  events.forEach(e=>{
+    const invited=invites[e.id]?.includes(currentUser);
+    const joined=rsvps[e.id]?.includes(currentUser);
+    const isCreator=e.creator===currentUser;
+    const requested=inviteRequests[e.id]?.some(r=>r.user===currentUser);
+
+    if(e.visibility==="private"&&!isCreator&&!invited) return;
+
+    const canRSVP=e.visibility==="public"||invited||isCreator;
+
+    const div=document.createElement("div");
+    div.className="event";
+    div.innerHTML=`
+      <span class="tag">${e.visibility==="private"?"🔒 Private":"🌍 Public"}</span>
+      <h3>${e.name}</h3>
+      <p>${e.location}</p>
+      <p>${new Date(e.date).toLocaleString()}</p>
+
+      ${
+        joined
+        ? `<p class="small">You are attending</p>`
+        : canRSVP
+          ? `<button onclick="rsvp(${e.id})">RSVP</button>`
+          : !requested
+            ? `<button onclick="requestInvite(${e.id})">Request Invite</button>`
+            : `<p class="small">Invite requested ⏳</p>`
+      }
+
+      ${
+        isCreator && inviteRequests[e.id]?.length
+        ? `
+          <div class="small">
+            <strong>Requests:</strong>
+            ${inviteRequests[e.id].map(r=>`
+              <p>
+                <b>${r.user}</b>: ${r.message}<br>
+                <button onclick="approveInvite(${e.id},'${r.user}')">Approve</button>
+                <button onclick="declineInvite(${e.id},'${r.user}')">Decline</button>
+              </p>
+            `).join("")}
+          </div>`
+        : ""
+      }
+    `;
+    eventsDiv.appendChild(div);
+
+    const marker=L.marker([e.lat,e.lon])
+      .addTo(map)
+      .bindPopup(`<b>${e.name}</b>`);
+    markers.push(marker);
+  });
+}
+
+loadEvents();
+</script>
+</body>
+</html>
