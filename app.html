@@ -488,28 +488,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(circle
 /* Geo status */
 #geoStatus{font-size:0.8rem;color:var(--ink3);font-weight:600;display:flex;align-items:center;gap:5px;}
 
-
-/* ── Config Modal ── */
-#configModal{display:none;position:fixed;inset:0;background:rgba(10,0,20,0.95);backdrop-filter:blur(20px);z-index:2000;align-items:center;justify-content:center;}
-#configModal.open{display:flex;}
-.cfg-box{background:var(--sur);border:2px solid var(--pu);border-radius:var(--r4);padding:36px;width:100%;max-width:520px;box-shadow:0 20px 80px rgba(168,85,247,0.5);animation:moIn .38s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;}
-.cfg-box::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--gR);animation:rbSlide 8s linear infinite;background-size:200% 100%;}
-.cfg-eyebrow{font-size:0.66rem;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;background:var(--g1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;}
-.cfg-box h2{font-family:'Fraunces',serif;font-size:2rem;font-weight:900;background:var(--g2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;letter-spacing:-1px;}
-.cfg-box p{color:var(--ink3);font-size:0.88rem;margin-bottom:22px;line-height:1.7;}
-.cfg-fields{display:flex;flex-direction:column;gap:14px;margin-bottom:22px;}
-.cfg-field{display:flex;flex-direction:column;gap:6px;}
-.cfg-field label{font-size:0.68rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink3);}
-.cfg-field input{padding:12px 14px;border-radius:var(--r2);border:1.5px solid var(--bg3);background:var(--bg);font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--ink);outline:none;transition:var(--T);}
-.cfg-field input:focus{border-color:var(--pu);box-shadow:0 0 0 3px rgba(168,85,247,0.12);}
-.cfg-field input::placeholder{color:var(--ink4);font-weight:400;}
-.cfg-hint{font-size:0.72rem;color:var(--ink4);margin-top:3px;line-height:1.5;}
-.cfg-hint a{color:var(--cy);text-decoration:none;font-weight:600;}
-.cfg-hint a:hover{text-decoration:underline;}
-.cfg-status{font-size:0.8rem;font-weight:600;padding:10px 14px;border-radius:var(--r2);margin-bottom:14px;display:none;}
-.cfg-status.ok{background:rgba(16,185,129,0.12);color:var(--gr);border:1.5px solid rgba(16,185,129,0.3);}
-.cfg-status.err{background:rgba(239,68,68,0.1);color:#ef4444;border:1.5px solid rgba(239,68,68,0.25);}
-
 /* ── Avatar upload ── */
 .av-upload-btn{width:48px;height:48px;border-radius:50%;border:3px dashed var(--bg3);cursor:pointer;transition:var(--T);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--ink3);font-size:1.3rem;position:relative;}
 .av-upload-btn:hover{border-color:var(--pk);color:var(--pk);background:rgba(255,45,149,0.07);transform:scale(1.08);}
