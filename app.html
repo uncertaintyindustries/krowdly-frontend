@@ -1013,43 +1013,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(circle
   </div>
 </div>
 
-
-<!-- ══════════════ CONFIG MODAL ══════════════ -->
-<div id="configModal">
-  <div class="cfg-box">
-    <div class="cfg-eyebrow">One-time setup ⚙️</div>
-    <h2>Connect Your Backend</h2>
-    <p>Paste your Vercel backend URL and Supabase keys below. They're saved in your browser — you only do this once.</p>
-    <div id="cfgStatus" class="cfg-status"></div>
-    <div class="cfg-fields">
-      <div class="cfg-field">
-        <label>Backend URL (Vercel)</label>
-        <input id="cfgBackend" placeholder="https://your-app.vercel.app" autocomplete="off">
-        <div class="cfg-hint">Your deployed Vercel URL — no trailing slash. <a href="https://vercel.com/dashboard" target="_blank">Open Vercel →</a></div>
-      </div>
-      <div class="cfg-field">
-        <label>Supabase Project URL</label>
-        <input id="cfgSupabaseUrl" placeholder="https://xxxxx.supabase.co" autocomplete="off">
-        <div class="cfg-hint">Found in <a href="https://app.supabase.com" target="_blank">Supabase Dashboard</a> → Project Settings → API</div>
-      </div>
-      <div class="cfg-field">
-        <label>Supabase Anon / Public Key</label>
-        <input id="cfgSupabaseAnon" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off">
-        <div class="cfg-hint">The <strong>anon public</strong> key (not the service key). Same page as above.</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-p" id="cfgTestBtn" style="flex:1;justify-content:center;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        Test &amp; Save
-      </button>
-      <button class="btn btn-g" id="cfgSkipBtn">Skip for now</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
 <!-- ══════════════ JAVASCRIPT ══════════════ -->
 <script>
 // ── Config ──
@@ -2229,86 +2192,6 @@ function checkBadge(id){
 function shakeFieldEl(el){if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');el.focus();}
 function escHtml(str){if(!str)return'';const d=document.createElement('div');d.appendChild(document.createTextNode(String(str)));return d.innerHTML;}
 function toast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-
-// ──────────── CONFIG MODAL ────────────
-function openConfigModal(){
-  // Pre-fill with whatever is saved
-  document.getElementById('cfgBackend').value     = BACKEND_URL   || '';
-  document.getElementById('cfgSupabaseUrl').value = SUPABASE_URL  || '';
-  document.getElementById('cfgSupabaseAnon').value= SUPABASE_ANON || '';
-  document.getElementById('configModal').classList.add('open');
-}
-function closeConfigModal(){
-  document.getElementById('configModal').classList.remove('open');
-}
-function setCfgStatus(msg, type){
-  const el=document.getElementById('cfgStatus');
-  el.textContent=msg; el.className='cfg-status '+type; el.style.display='block';
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  // Test & Save button
-  document.getElementById('cfgTestBtn').addEventListener('click', async ()=>{
-    const backend = document.getElementById('cfgBackend').value.trim().replace(/\/+$/,'');
-    const sUrl    = document.getElementById('cfgSupabaseUrl').value.trim().replace(/\/+$/,'');
-    const sAnon   = document.getElementById('cfgSupabaseAnon').value.trim();
-
-    if(!backend) return setCfgStatus('Please enter your Vercel backend URL.','err');
-    if(!backend.startsWith('http')) return setCfgStatus('Backend URL must start with https://','err');
-
-    const btn=document.getElementById('cfgTestBtn');
-    btn.disabled=true; btn.innerHTML='<span class="sp"></span> Testing…';
-    setCfgStatus('','');
-
-    try{
-      // Ping the health endpoint — it tells us exactly what's wrong
-      const res = await fetch(backend+'/', {method:'GET'});
-      const data = await res.json().catch(()=>({}));
-
-      if(!res.ok){
-        // Backend is reachable but misconfigured — show the exact problem
-        if(data.missing_env_vars && data.missing_env_vars.length){
-          const vars = data.missing_env_vars.join(', ');
-          throw new Error(
-            `Backend reached but missing Vercel env vars: ${vars}. ` +
-            `Go to Vercel Dashboard → Your Project → Settings → Environment Variables and add them, then redeploy.`
-          );
-        }
-        throw new Error(data.error || 'Server error '+res.status);
-      }
-
-      // All good — save everything
-      BACKEND_URL   = backend;
-      SUPABASE_URL  = sUrl;
-      SUPABASE_ANON = sAnon;
-      localStorage.setItem('krowdly_backend_url',  BACKEND_URL);
-      localStorage.setItem('krowdly_supabase_url', SUPABASE_URL);
-      localStorage.setItem('krowdly_supabase_anon',SUPABASE_ANON);
-
-      setCfgStatus('✓ Connected! '+(data.status||'Backend is live.'),'ok');
-      setTimeout(()=>{
-        closeConfigModal();
-        toast('Backend connected! You can now sign up. 🎉');
-        if(SUPABASE_URL && SUPABASE_ANON) initSupabaseRealtime();
-        fetchEvents(); fetchUsers();
-      }, 1200);
-
-    }catch(e){
-      let msg = e.message||'Could not reach server.';
-      if(msg.includes('Failed to fetch')||msg.includes('NetworkError')||msg.includes('Load failed')){
-        msg = 'Cannot reach that URL. Check for typos and make sure the backend is deployed on Vercel.';
-      }
-      setCfgStatus('✗ '+msg,'err');
-    }finally{
-      btn.disabled=false;
-      btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Test &amp; Save';
-    }
-  });
-
-  document.getElementById('cfgSkipBtn').addEventListener('click', closeConfigModal);
-
-  // Config modal only opens manually via the gear icon —
-  // credentials are already set in the code.
 });
 </script>
 </body>
